@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
 
 const App: React.FC = () => {
+  const [apiKey, setApiKey] = useState<string>('');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -90,6 +91,11 @@ const App: React.FC = () => {
       setError("Please select a video file first.");
       return;
     }
+    if (!apiKey) {
+      setError("Please enter your Google Gemini API key to proceed.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResultText(null);
@@ -98,7 +104,7 @@ const App: React.FC = () => {
     try {
       const base64Frame = await extractFrameAsBase64();
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: {
@@ -123,7 +129,11 @@ const App: React.FC = () => {
       setGroundingChunks(response.candidates?.[0]?.groundingMetadata?.groundingChunks || []);
 
     } catch (e: any) {
-      setError(`An error occurred during analysis: ${e.message}`);
+      if (e.message?.includes('API key not valid')) {
+        setError('The provided API key is not valid. Please check your key and try again.');
+      } else {
+        setError(`An error occurred during analysis: ${e.message}`);
+      }
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -134,6 +144,18 @@ const App: React.FC = () => {
     <div className="app-container">
       <h1 className="title">Video Origin Finder</h1>
       
+      <div className="api-key-container">
+        <label htmlFor="api-key-input">Google Gemini API Key</label>
+        <input
+          id="api-key-input"
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="Enter your API key here"
+          aria-label="Google Gemini API Key"
+        />
+      </div>
+
       <label 
         className="upload-zone"
         onDrop={handleDrop}
@@ -160,7 +182,7 @@ const App: React.FC = () => {
       <button
         className="analyze-button"
         onClick={handleAnalyzeClick}
-        disabled={!videoFile || isLoading}
+        disabled={!videoFile || !apiKey || isLoading}
       >
         Analyze Video
       </button>
