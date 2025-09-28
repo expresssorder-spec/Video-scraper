@@ -7,6 +7,7 @@ const App: React.FC = () => {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [resultText, setResultText] = useState<string | null>(null);
   const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
@@ -15,11 +16,11 @@ const App: React.FC = () => {
 
   const extractFrameAsBase64 = (): Promise<string> => {
     return new Promise((resolve, reject) => {
-      if (!videoRef.current) {
+      const video = videoRef.current;
+      if (!video) {
         return reject("Video element not found.");
       }
 
-      const video = videoRef.current;
       const canvas = document.createElement("canvas");
       
       const onSeeked = () => {
@@ -38,18 +39,9 @@ const App: React.FC = () => {
           reject(`Failed to extract frame: ${e}`);
         }
       };
-
-      const onLoadedMetadata = () => {
-          video.removeEventListener('loadedmetadata', onLoadedMetadata);
-          video.addEventListener('seeked', onSeeked);
-          video.currentTime = video.duration / 2; // Seek to the middle
-      };
       
-      if (video.readyState >= 1) { // METADATA_LOADED
-          onLoadedMetadata();
-      } else {
-          video.addEventListener('loadedmetadata', onLoadedMetadata);
-      }
+      video.addEventListener('seeked', onSeeked);
+      video.currentTime = video.duration / 2; // Seek to the middle
     });
   };
 
@@ -62,6 +54,7 @@ const App: React.FC = () => {
       setError(null);
       setResultText(null);
       setGroundingChunks([]);
+      setIsVideoReady(false);
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoSrc(url);
@@ -93,6 +86,10 @@ const App: React.FC = () => {
     }
     if (!apiKey) {
       setError("Please enter your Google Gemini API key to proceed.");
+      return;
+    }
+    if (!isVideoReady) {
+      setError("Please wait for the video to finish loading.");
       return;
     }
 
@@ -140,6 +137,12 @@ const App: React.FC = () => {
     }
   };
 
+  const getButtonText = () => {
+    if (isLoading) return "Analyzing...";
+    if (videoFile && !isVideoReady) return "Loading video...";
+    return "Analyze Video";
+  }
+
   return (
     <div className="app-container">
       <h1 className="title">Video Origin Finder</h1>
@@ -175,16 +178,22 @@ const App: React.FC = () => {
 
       {videoSrc && (
         <div className="preview-container">
-          <video ref={videoRef} src={videoSrc} controls playsInline />
+          <video 
+            ref={videoRef} 
+            src={videoSrc} 
+            controls 
+            playsInline 
+            onLoadedData={() => setIsVideoReady(true)}
+          />
         </div>
       )}
 
       <button
         className="analyze-button"
         onClick={handleAnalyzeClick}
-        disabled={!videoFile || !apiKey || isLoading}
+        disabled={!videoFile || !apiKey || isLoading || !isVideoReady}
       >
-        Analyze Video
+        {getButtonText()}
       </button>
 
       {isLoading && (
