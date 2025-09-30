@@ -1,5 +1,7 @@
 {
-  "name": "Video sraper",
-  "description": "An empty app",
-  "requestFramePermissions": []
+  "name": "Gemini Voice Chat",
+  "description": "A real-time voice chat application powered by the Gemini API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
